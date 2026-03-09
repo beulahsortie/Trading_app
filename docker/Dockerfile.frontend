@@ -1,0 +1,61 @@
+FROM node:18-alpine as builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# Production stage with nginx
+FROM nginx:alpine
+
+# Copy nginx config
+RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
+server {
+    listen 3000;
+    server_name _;
+    
+    root /usr/share/nginx/html;
+    index index.html;
+    
+    # Serve static files
+    location / {
+        try_files $uri $uri/ /index.html;
+        expires 1d;
+        add_header Cache-Control "public, immutable";
+    }
+    
+    # Proxy API requests to backend
+    location /api {
+        proxy_pass http://backend:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+    
+    # Proxy WebSocket
+    location /ws {
+        proxy_pass http://backend:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 86400;
+    }
+}
+EOF
+
+# Copy built frontend from builder
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:3000 || exit 1
+
+CMD ["nginx", "-g", "daemon off;"]

@@ -2,11 +2,13 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server, path: '/ws' });
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 
@@ -30,12 +32,13 @@ class MarketDataService {
   _initializePriceHistories() {
     const histories = {};
     const now = Date.now();
-    const interval = 60000;
+    const interval = 60000; // 1 minute intervals
 
     Object.entries(this.tickers).forEach(([ticker, data]) => {
       const basePrice = data.price;
       histories[ticker] = [];
       
+      // Generate 120 data points (2 hours of 1-minute data)
       for (let i = 119; i >= 0; i--) {
         const volatility = (Math.random() - 0.5) * (basePrice * 0.02);
         const price = basePrice + (Math.random() - 0.5) * basePrice * 0.05 + volatility;
@@ -55,6 +58,7 @@ class MarketDataService {
   startMarketSimulation() {
     setInterval(() => {
       Object.entries(this.tickers).forEach(([ticker, data]) => {
+        // Simulate price movement
         const volatility = (Math.random() - 0.5) * 2;
         const changePercent = (Math.random() - 0.5) * 0.02;
         const newPrice = data.price * (1 + changePercent);
@@ -62,6 +66,7 @@ class MarketDataService {
         this.tickers[ticker].price = parseFloat(newPrice.toFixed(2));
         this.tickers[ticker].change = parseFloat((this.tickers[ticker].change + volatility).toFixed(2));
 
+        // Update price history
         const now = Date.now();
         this.priceHistories[ticker].push({
           timestamp: now,
@@ -71,13 +76,15 @@ class MarketDataService {
           low: parseFloat((newPrice - Math.abs(Math.random() * 3)).toFixed(2))
         });
 
+        // Keep only last 120 data points
         if (this.priceHistories[ticker].length > 120) {
           this.priceHistories[ticker].shift();
         }
       });
 
+      // Broadcast updates to all subscribers
       this.broadcastUpdate();
-    }, 1000);
+    }, 1000); // Update every second
   }
 
   broadcastUpdate() {
@@ -112,6 +119,10 @@ class MarketDataService {
   getTickerHistory(ticker) {
     return this.priceHistories[ticker] || [];
   }
+
+  getTickerData(ticker) {
+    return this.tickers[ticker] || null;
+  }
 }
 
 const marketDataService = new MarketDataService();
@@ -121,6 +132,7 @@ wss.on('connection', (ws) => {
   console.log('Client connected');
   marketDataService.subscribe(ws);
 
+  // Send initial data
   ws.send(JSON.stringify({
     type: 'initial_data',
     data: marketDataService.getAllTickers(),
@@ -139,10 +151,7 @@ wss.on('connection', (ws) => {
 
 // ============ REST API Endpoints ============
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
-});
-
+// GET /api/tickers - List all available tickers
 app.get('/api/tickers', (req, res) => {
   res.json({
     status: 'success',
@@ -150,11 +159,12 @@ app.get('/api/tickers', (req, res) => {
   });
 });
 
+// GET /api/tickers/:symbol - Get specific ticker data
 app.get('/api/tickers/:symbol', (req, res) => {
   const { symbol } = req.params;
-  const ticker = marketDataService.tickers[symbol];
+  const data = marketDataService.getTickerData(symbol);
 
-  if (!ticker) {
+  if (!data) {
     return res.status(404).json({
       status: 'error',
       message: `Ticker ${symbol} not found`
@@ -163,10 +173,11 @@ app.get('/api/tickers/:symbol', (req, res) => {
 
   res.json({
     status: 'success',
-    data: { symbol, ...ticker }
+    data: { symbol, ...data }
   });
 });
 
+// GET /api/tickers/:symbol/history - Get historical price data
 app.get('/api/tickers/:symbol/history', (req, res) => {
   const { symbol } = req.params;
   const { limit = 120 } = req.query;
@@ -187,8 +198,17 @@ app.get('/api/tickers/:symbol/history', (req, res) => {
     data: limitedHistory,
     metadata: {
       symbol,
-      count: limitedHistory.length
+      count: limitedHistory.length,
+      timespan: `${limitedHistory.length} minutes`
     }
+  });
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -197,7 +217,8 @@ app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({
     status: 'error',
-    message: 'Internal server error'
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 
@@ -205,7 +226,18 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3001;
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Trading Backend running on port ${PORT}`);
-  console.log(`WebSocket: ws://localhost:${PORT}/ws`);
+  console.log(`Trading Backend Server running on port ${PORT}`);
+  console.log(`WebSocket endpoint: ws://localhost:${PORT}/ws`);
   console.log(`REST API: http://localhost:${PORT}/api`);
 });
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+});
+
+module.exports = { app, marketDataService };
