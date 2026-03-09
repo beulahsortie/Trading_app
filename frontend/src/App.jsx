@@ -1,14 +1,32 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function App() {
-  const [tickers] = useState([
-    { symbol: 'AAPL', name: 'Apple', price: 150.25, change: 2.15 },
-    { symbol: 'TSLA', name: 'Tesla', price: 242.80, change: -1.50 },
-    { symbol: 'GOOGL', name: 'Google', price: 139.45, change: 0.85 },
-    { symbol: 'MSFT', name: 'Microsoft', price: 380.15, change: 3.20 },
-  ]);
-  const [selectedTicker, setSelectedTicker] = useState(tickers[0]);
+  const [tickers, setTickers] = useState([]);
+  const [selectedTicker, setSelectedTicker] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    // Fetch tickers from backend
+    fetch('/api/tickers')
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          setTickers(data.data);
+          if (data.data.length > 0) {
+            setSelectedTicker(data.data[0]);
+          }
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (error) return <div className="flex items-center justify-center min-h-screen">Error: {error}</div>;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -30,8 +48,8 @@ function App() {
               <button
                 key={ticker.symbol}
                 onClick={() => setSelectedTicker(ticker)}
-                className={`w-full p-4 rounded-lg transition-all ${
-                  selectedTicker.symbol === ticker.symbol
+                className={`w-full p-4 rounded-lg transition-all text-left ${
+                  selectedTicker?.symbol === ticker.symbol
                     ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg'
                     : 'bg-white text-slate-800 shadow hover:shadow-md border border-slate-200'
                 }`}
@@ -55,32 +73,36 @@ function App() {
 
         {/* Main Content */}
         <main className="lg:col-span-3">
-          {/* Selected Ticker Info */}
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-            <h2 className="text-3xl font-bold text-slate-800 mb-2">{selectedTicker.symbol}</h2>
-            <p className="text-slate-500 text-sm mb-4">{selectedTicker.name}</p>
-            
-            <div className="flex items-end gap-4">
-              <div>
-                <div className="text-5xl font-bold text-slate-800">
-                  ${selectedTicker.price}
-                </div>
-                <div className={`text-xl font-semibold mt-2 ${
-                  selectedTicker.change >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {selectedTicker.change > 0 ? '▲' : '▼'} {selectedTicker.change > 0 ? '+' : ''}{selectedTicker.change}%
+          {selectedTicker && (
+            <>
+              {/* Selected Ticker Info */}
+              <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
+                <h2 className="text-3xl font-bold text-slate-800 mb-2">{selectedTicker.symbol}</h2>
+                <p className="text-slate-500 text-sm mb-4">{selectedTicker.name}</p>
+                
+                <div className="flex items-end gap-4">
+                  <div>
+                    <div className="text-5xl font-bold text-slate-800">
+                      ${selectedTicker.price}
+                    </div>
+                    <div className={`text-xl font-semibold mt-2 ${
+                      selectedTicker.change >= 0 ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {selectedTicker.change > 0 ? '▲' : '▼'} {selectedTicker.change > 0 ? '+' : ''}{selectedTicker.change}%
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Chart Placeholder */}
-          <div className="bg-white rounded-lg shadow-lg p-8 h-96 flex items-center justify-center">
-            <div className="text-center text-slate-400">
-              <p className="text-lg mb-2">📊 Chart Coming Soon</p>
-              <p className="text-sm">Interactive charts will appear here</p>
-            </div>
-          </div>
+              {/* Chart Placeholder */}
+              <div className="bg-white rounded-lg shadow-lg p-8 h-96 flex items-center justify-center">
+                <div className="text-center text-slate-400">
+                  <p className="text-lg mb-2">Chart Coming Soon</p>
+                  <p className="text-sm">Interactive charts will appear here</p>
+                </div>
+              </div>
+            </>
+          )}
         </main>
       </div>
     </div>
