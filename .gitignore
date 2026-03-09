@@ -1,0 +1,35 @@
+cd ..  # Back to project root
+cat > .gitignore << 'EOF'
+# Dependencies
+node_modules/
+*/node_modules/
+package-lock.json
+*/package-lock.json
+yarn.lock
+*/yarn.lock
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build
+dist/
+*/dist/
+build/
+*/build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+EOF

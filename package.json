@@ -1,0 +1,14 @@
+
+{
+  "name": "trading-ticker",
+  "version": "1.0.0",
+  "description": "Real-time trading dashboard",
+  "main": "index.js",
+  "scripts": {
+    "frontend": "cd frontend && npm run dev",
+    "dev": "cd frontend && npm run dev"
+  },
+  "keywords": ["trading", "dashboard", "real-time"],
+  "author": "",
+  "license": "MIT"
+}
