@@ -1,35 +1,66 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+
+import React, { useState } from 'react';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [tickers] = useState([
+    { symbol: 'AAPL', name: 'Apple', price: 150.25, change: 2.15 },
+    { symbol: 'TSLA', name: 'Tesla', price: 242.80, change: -1.50 },
+    { symbol: 'GOOGL', name: 'Google', price: 139.45, change: 0.85 },
+  ]);
+  const [selectedTicker, setSelectedTicker] = useState(tickers[0]);
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="app">
+      <header className="header">
+        <h1>Trading Dashboard</h1>
+        <p>Real-time market data</p>
+      </header>
+
+      <div className="container">
+        <aside className="sidebar">
+          <h2>Tickers</h2>
+          <div className="ticker-list">
+            {tickers.map(ticker => (
+              <button
+                key={ticker.symbol}
+                className={`ticker-card ${selectedTicker.symbol === ticker.symbol ? 'active' : ''}`}
+                onClick={() => setSelectedTicker(ticker)}
+              >
+                <div className="ticker-header">
+                  <span className="symbol">{ticker.symbol}</span>
+                  <span className={`price ${ticker.change >= 0 ? 'positive' : 'negative'}`}>
+                    {ticker.price}
+                  </span>
+                </div>
+                <div className="ticker-info">
+                  <span>{ticker.name}</span>
+                  <span className={`change ${ticker.change >= 0 ? 'positive' : 'negative'}`}>
+                    {ticker.change > 0 ? '+' : ''}{ticker.change}%
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <main className="main">
+          <div className="ticker-detail">
+            <h2>{selectedTicker.symbol}</h2>
+            <p className="ticker-name">{selectedTicker.name}</p>
+            <div className="price-large">${selectedTicker.price}</div>
+            <p className={`change-large ${selectedTicker.change >= 0 ? 'positive' : 'negative'}`}>
+              {selectedTicker.change > 0 ? '+' : ''}{selectedTicker.change}% change
+            </p>
+          </div>
+
+          <div className="chart-placeholder">
+            <p>Chart will be here </p>
+          </div>
+        </main>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    </div>
+  );
 }
 
-export default App
+export default App;
