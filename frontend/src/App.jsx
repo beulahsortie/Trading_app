@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import Chart from './Chart';
 
 function App() {
   const [tickers, setTickers] = useState([]);
   const [selectedTicker, setSelectedTicker] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const wsRef = useRef(null);
 
+  // Fetch initial data
   useEffect(() => {
-    // Fetch tickers from backend
     fetch('/api/tickers')
       .then(res => res.json())
       .then(data => {
@@ -25,16 +28,84 @@ function App() {
       });
   }, []);
 
+  // Connect WebSocket
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+
+    try {
+      wsRef.current = new WebSocket(wsUrl);
+
+      wsRef.current.onopen = () => {
+        console.log('WebSocket connected');
+        setConnectionStatus('connected');
+      };
+
+      wsRef.current.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+
+        if (message.type === 'price_update') {
+          const updatedTickers = Object.entries(message.data).map(([symbol, data]) => ({
+            symbol,
+            ...data
+          }));
+          setTickers(updatedTickers);
+        }
+      };
+
+      wsRef.current.onerror = () => {
+        console.error('WebSocket error');
+        setConnectionStatus('error');
+        setError('Connection error. Retrying...');
+      };
+
+      wsRef.current.onclose = () => {
+        console.log('WebSocket disconnected');
+        setConnectionStatus('disconnected');
+        setTimeout(() => {
+          wsRef.current = null;
+        }, 3000);
+      };
+    } catch (err) {
+      console.error('Failed to create WebSocket:', err);
+      setError('Failed to connect to server');
+    }
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
+
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   if (error) return <div className="flex items-center justify-center min-h-screen">Error: {error}</div>;
+
+  const statusColor = {
+    connected: 'bg-green-500',
+    connecting: 'bg-yellow-500',
+    disconnected: 'bg-red-500',
+    error: 'bg-red-500'
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
       <header className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 shadow-lg">
-        <div className="max-w-6xl mx-auto">
-          <h1 className="text-4xl font-bold mb-2">Trading Dashboard</h1>
-          <p className="text-blue-100">Real-time market data & analytics</p>
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Trading Dashboard</h1>
+            <p className="text-blue-100">Real-time market data & analytics</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full ${statusColor[connectionStatus]}`}></div>
+            <span className="text-sm">
+              {connectionStatus === 'connected' && 'Live'}
+              {connectionStatus === 'connecting' && 'Connecting...'}
+              {connectionStatus === 'disconnected' && 'Offline'}
+              {connectionStatus === 'error' && 'Error'}
+            </span>
+          </div>
         </div>
       </header>
 
@@ -94,12 +165,10 @@ function App() {
                 </div>
               </div>
 
-              {/* Chart Placeholder */}
-              <div className="bg-white rounded-lg shadow-lg p-8 h-96 flex items-center justify-center">
-                <div className="text-center text-slate-400">
-                  <p className="text-lg mb-2">Chart Coming Soon</p>
-                  <p className="text-sm">Interactive charts will appear here</p>
-                </div>
+              {/* Chart */}
+              <div className="bg-white rounded-lg shadow-lg p-8">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4">Price History (2 Hours)</h3>
+                <Chart symbol={selectedTicker.symbol} />
               </div>
             </>
           )}
