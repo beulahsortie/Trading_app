@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
@@ -8,8 +8,17 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
-        changeOrigin: true
+        changeOrigin: true,
+        rewrite: (path) => path
+      },
+      '/ws': {
+        target: 'ws://localhost:3001',
+        ws: true
       }
     }
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: true
   }
-})
+});

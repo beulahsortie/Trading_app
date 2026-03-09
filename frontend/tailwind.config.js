@@ -1,15 +1,17 @@
+import { defineConfig } from 'tailwindcss/defaultConfig';
+
 export default {
   content: [
-    "./index.html",
-    "./src/**/*.{js,jsx,ts,tsx}",
+    './index.html',
+    './src/**/*.{js,jsx}',
+    './*.jsx'
   ],
   theme: {
     extend: {
-      colors: {
-        primary: '#667eea',
-        secondary: '#764ba2',
+      animation: {
+        'pulse': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       }
-    },
+    }
   },
-  plugins: [],
-}
+  plugins: []
+};
